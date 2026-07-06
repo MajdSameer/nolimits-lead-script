@@ -21,7 +21,7 @@ card) is verbatim from the artifact.
 ```
 Client (ported artifact UI)
   ├── POST /api/parse     → server → Gemini (gemini-2.5-flash, JSON)
-  ├── POST /api/customer  → server → Gemini (gemini-2.0-flash)
+  ├── POST /api/customer  → server → Gemini (gemini-2.5-flash)
   ├── POST /api/grade     → server → Gemini (gemini-2.5-flash, JSON)
   └── POST /api/log       → server → Apps Script Web App (fire-and-forget)
 ```
@@ -36,13 +36,15 @@ client.
 | Route      | Model                | Notes |
 |------------|----------------------|-------|
 | `/api/parse`    | `gemini-2.5-flash`   | extraction accuracy; strict JSON output |
-| `/api/customer` | `gemini-2.0-flash`   | short roleplay turn — fast |
+| `/api/customer` | `gemini-2.5-flash`   | roleplay turn; thinking disabled for speed |
 | `/api/grade`    | `gemini-2.5-flash`   | coaching quality; strict JSON output |
 
-All three run on Gemini's free tier. To swap the provider (e.g. back to
-Anthropic, or to Groq), edit `src/lib/model.ts` only — the routes, prompts, and
-UI are provider-agnostic. If the customer feels flat on hard mode, bump
-`/api/customer` to `gemini-2.5-flash` in `src/app/api/customer/route.ts`.
+All three run on `gemini-2.5-flash`, which is served on the free tier. (Note:
+free-tier model availability varies by Google Cloud project — some projects show
+quota `0` for `gemini-2.0-flash`, so we standardised on `2.5-flash`, which is
+consistently available.) To swap the provider (e.g. back to Anthropic, or to
+Groq), edit `src/lib/model.ts` only — the routes, prompts, and UI are
+provider-agnostic.
 
 > **Free-tier caveats:** Gemini's free tier is rate-limited and its terms allow
 > Google to use the data to improve their models. That's acceptable for an

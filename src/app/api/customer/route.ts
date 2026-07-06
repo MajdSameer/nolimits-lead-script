@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
   try {
     const reply = await callModel(
       personaPrompt(p, difficulty, transcriptText(turns)),
-      "gemini-2.0-flash",
+      // 2.5-flash (thinking disabled in model.ts) — the free tier serves it,
+      // and it stays fast enough for one call per line of dialogue.
+      "gemini-2.5-flash",
       { temperature: 0.9 }
     );
     return NextResponse.json({ reply: reply.trim() });
