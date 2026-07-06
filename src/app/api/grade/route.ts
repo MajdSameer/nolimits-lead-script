@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guard, jsonError, requireRep } from "@/lib/guard";
 import { gradePrompt } from "@/lib/prompts";
-import { callClaude, parseModelJson } from "@/lib/anthropic";
+import { callModel, parseModelJson } from "@/lib/model";
 import { normalizeTurns, transcriptText } from "@/lib/transcript";
 
 export const runtime = "nodejs";
@@ -34,9 +34,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const text = await callClaude(
+    const text = await callModel(
       gradePrompt(p, transcriptText(turns)),
-      "claude-sonnet-4-6"
+      "gemini-2.5-flash",
+      { json: true, temperature: 0.3 }
     );
     const grade = parseModelJson(text);
     return NextResponse.json({ grade });

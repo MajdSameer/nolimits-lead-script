@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guard, jsonError, requireRep } from "@/lib/guard";
 import { personaPrompt } from "@/lib/prompts";
-import { callClaude } from "@/lib/anthropic";
+import { callModel } from "@/lib/model";
 import {
   MAX_PRACTICE_LINE,
   MAX_TURNS,
@@ -60,9 +60,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const reply = await callClaude(
+    const reply = await callModel(
       personaPrompt(p, difficulty, transcriptText(turns)),
-      "claude-haiku-4-5-20251001"
+      "gemini-2.0-flash",
+      { temperature: 0.9 }
     );
     return NextResponse.json({ reply: reply.trim() });
   } catch {

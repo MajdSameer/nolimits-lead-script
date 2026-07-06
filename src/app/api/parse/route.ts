@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guard, jsonError, requireRep } from "@/lib/guard";
 import { parsePrompt } from "@/lib/prompts";
-import { callClaude, parseModelJson } from "@/lib/anthropic";
+import { callModel, parseModelJson } from "@/lib/model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const text = await callClaude(parsePrompt(rawText), "claude-sonnet-4-6");
+    const text = await callModel(parsePrompt(rawText), "gemini-2.5-flash", {
+      json: true,
+      temperature: 0.2,
+    });
     const parsed = parseModelJson(text);
     return NextResponse.json({ parsed });
   } catch {

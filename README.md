@@ -2,8 +2,8 @@
 
 A standalone web app that turns a raw removalist lead into a tailored call
 script, then lets reps practise the call against an AI customer and get scored.
-Sales reps use it with **no Claude account** — the Anthropic key lives only in
-server env vars, and every model call goes through a Next.js API route.
+Sales reps use it with **no AI account of their own** — the model API key lives
+only in server env vars, and every model call goes through a Next.js API route.
 
 Ported from the approved `lead-to-script.jsx` artifact. The script copy (every
 "Say this" line, objection step, LAERC badge, mindset strip, Feel-Felt-Found
@@ -12,16 +12,17 @@ card) is verbatim from the artifact.
 ## Stack
 
 - Next.js (App Router) + React, deployed on Vercel.
-- Anthropic called server-side (`api.anthropic.com/v1/messages`, `max_tokens: 1000`).
+- Google Gemini (free tier) called server-side
+  (`generativelanguage.googleapis.com`, `maxOutputTokens: 1000`).
 - No database — logging goes to Google Sheets via an Apps Script Web App.
 
 ## Architecture
 
 ```
 Client (ported artifact UI)
-  ├── POST /api/parse     → server → Anthropic (claude-sonnet-4-6)
-  ├── POST /api/customer  → server → Anthropic (claude-haiku-4-5-20251001)
-  ├── POST /api/grade     → server → Anthropic (claude-sonnet-4-6)
+  ├── POST /api/parse     → server → Gemini (gemini-2.5-flash, JSON)
+  ├── POST /api/customer  → server → Gemini (gemini-2.0-flash)
+  ├── POST /api/grade     → server → Gemini (gemini-2.5-flash, JSON)
   └── POST /api/log       → server → Apps Script Web App (fire-and-forget)
 ```
 
@@ -32,15 +33,21 @@ client.
 
 ### Model routing
 
-| Route      | Model                        | Why |
-|------------|------------------------------|-----|
-| `/api/parse`    | `claude-sonnet-4-6`          | extraction accuracy |
-| `/api/customer` | `claude-haiku-4-5-20251001`  | short roleplay turn, ~5× cheaper/faster |
-| `/api/grade`    | `claude-sonnet-4-6`          | coaching quality |
+| Route      | Model                | Notes |
+|------------|----------------------|-------|
+| `/api/parse`    | `gemini-2.5-flash`   | extraction accuracy; strict JSON output |
+| `/api/customer` | `gemini-2.0-flash`   | short roleplay turn — fast |
+| `/api/grade`    | `gemini-2.5-flash`   | coaching quality; strict JSON output |
 
-If the customer feels flat or breaks character on hard mode, bump `/api/customer`
-to `claude-sonnet-4-6` in `src/app/api/customer/route.ts` — the cost difference
-is cents.
+All three run on Gemini's free tier. To swap the provider (e.g. back to
+Anthropic, or to Groq), edit `src/lib/model.ts` only — the routes, prompts, and
+UI are provider-agnostic. If the customer feels flat on hard mode, bump
+`/api/customer` to `gemini-2.5-flash` in `src/app/api/customer/route.ts`.
+
+> **Free-tier caveats:** Gemini's free tier is rate-limited and its terms allow
+> Google to use the data to improve their models. That's acceptable for an
+> internal sales-practice tool, but if you later want stricter privacy, switch
+> `src/lib/model.ts` to a paid provider — the rest of the app is unchanged.
 
 ## Access control (v1)
 
@@ -90,11 +97,13 @@ transcripts. The client only ever sends the whitelisted fields above, and
 Server-only — never prefix with `NEXT_PUBLIC_`. See `.env.example`.
 
 ```
-ANTHROPIC_API_KEY    # server only
+GEMINI_API_KEY       # server only — free key from aistudio.google.com/apikey
 TEAM_PASSCODE
-LOG_SHARED_SECRET    # matches the Apps Script property
+LOG_SHARED_SECRET    # matches the Apps Script property (optional)
 LOG_WEBAPP_URL       # Apps Script /exec URL (optional — unset disables logging)
 ```
+
+Only `GEMINI_API_KEY` and `TEAM_PASSCODE` are required; logging is optional.
 
 ## Local development
 
@@ -107,16 +116,16 @@ npm run dev                  # http://localhost:3000
 ## Deploy (Vercel)
 
 1. Import the repo into Vercel.
-2. Add the four env vars in Project → Settings → Environment Variables.
+2. Add the env vars in Project → Settings → Environment Variables.
 3. Deploy. Confirm the key is absent from the client bundle:
    ```bash
    npm run build
-   grep -r "sk-ant" .next/static || echo "key absent from client bundle ✓"
+   grep -r "AIza\|generativelanguage" .next/static || echo "key absent from client bundle ✓"
    ```
 
 ## Verifying the key never ships to the client
 
-`ANTHROPIC_API_KEY` is read via `process.env` only inside files under
-`src/app/api/**` and `src/lib/anthropic.ts`, all of which run server-side. No
-client component imports them, and the variable is not `NEXT_PUBLIC_`, so it is
-never inlined into a browser bundle.
+`GEMINI_API_KEY` is read via `process.env` only inside `src/lib/model.ts`, which
+is imported exclusively by the server routes under `src/app/api/**`. No client
+component imports it, and the variable is not `NEXT_PUBLIC_`, so it is never
+inlined into a browser bundle.
